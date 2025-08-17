@@ -16,9 +16,9 @@ Follow along using the starter files below.
 
 ## Download to follow along
 
-- [Robot starter .blend](blendFiles/Robot_Starter.blend)  
+- [Robot starter .blend](blendFiles/BeepyBoop_Start.blend)  
 
-- [Blender extension (zip)](HWPBA_BlenderExtension.zip) — You can just drag this into Blender to install.  
+- [Blender extension (zip)](hwpbaExtension.zip) — You can just drag this into Blender to install.  
   
 ## Scripting
 
