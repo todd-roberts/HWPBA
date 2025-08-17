@@ -108,25 +108,13 @@ def _median_part_size(objs):
         sizes.append((maxv - minv).length)
     return stats.median(sizes) if sizes else 1.0
 
-def _pelvis_guess(objs):
-    # midpoint between left/right thigh/leg if detectable, else average of origins
-    lefts  = [o for o in objs if re.search(r'\.(l|left)\b', o.name, re.I) and re.search(r'(thigh|leg)', o.name, re.I)]
-    rights = [o for o in objs if re.search(r'\.(r|right)\b', o.name, re.I) and re.search(r'(thigh|leg)', o.name, re.I)]
-    if lefts and rights:
-        l = lefts[0].matrix_world.translation
-        r = rights[0].matrix_world.translation
-        return (l + r) * 0.5
-    acc = Vector((0,0,0))
-    for o in objs: acc += o.matrix_world.translation
-    return acc / max(len(objs), 1)
-
-def _ensure_armature(host_collection, world_loc: Vector):
+def _ensure_armature(host_collection):
     arm_data = bpy.data.armatures.new(ARMATURE_NAME + "_Data")
     arm_obj  = bpy.data.objects.new(ARMATURE_NAME, arm_data)
     host_collection.objects.link(arm_obj)
 
-    # Identity rotation so local Z == world Z
-    arm_obj.matrix_world = Matrix.Translation(world_loc)
+    # World origin, identity transform
+    arm_obj.matrix_world = Matrix.Identity(4)
 
     # Visibility defaults
     arm_obj.show_in_front = True
@@ -148,14 +136,12 @@ def _exit_edit():
 def _create_bone(arm_data, arm_obj, name: str, head_world: Vector, length: float):
     eb = arm_data.edit_bones.new(_safe_name(name))
     head_local = arm_obj.matrix_world.inverted() @ head_world
-    # Tail goes +Z (Blender is Z-up), longer for easier selection
     eb.head = head_local
     eb.tail = head_local + Vector((0.0, 0.0, max(BONE_MIN_LEN, length)))
     eb.roll = 0.0
     return eb
 
 def _safe_name(s: str) -> str:
-    # keep .L/.R suffix; remove other odd chars
     s = s.strip()
     suffix = ""
     m = re.search(r"(\.[LR])$", s, re.I)
@@ -184,7 +170,6 @@ def _assign_full_weight(obj, bone_name: str):
     vg.add(range(len(me.vertices)), 1.0, 'REPLACE')
 
 def _add_armature_mod(obj, arm_obj):
-    # Remove existing armature modifiers to avoid double binds
     for m in list(obj.modifiers):
         if m.type == 'ARMATURE':
             obj.modifiers.remove(m)
@@ -212,7 +197,6 @@ def _view3d_override(context, active_obj, selected_objs):
         "view_layer": context.view_layer,
         "scene": context.scene,
     }
-    # prune None values
     return {k: v for k, v in override.items() if v is not None}
 
 def _apply_rot_scale(context, parts):
@@ -221,7 +205,6 @@ def _apply_rot_scale(context, parts):
         return
     active = parts[0]
 
-    # Ensure active/selection
     for o in context.selected_objects:
         o.select_set(False)
     for o in parts:
@@ -230,26 +213,22 @@ def _apply_rot_scale(context, parts):
 
     ov = _view3d_override(context, active, parts)
 
-    # Ensure OBJECT mode (needs active object)
     try:
         with context.temp_override(**ov):
             if bpy.context.mode != 'OBJECT':
                 bpy.ops.object.mode_set(mode='OBJECT')
     except Exception:
-        # last resort: try without override
         try:
             bpy.ops.object.mode_set(mode='OBJECT')
         except Exception as e:
             print(f"[HWPBA] mode_set fallback failed: {e}")
 
-    # Apply transforms (location=False)
     try:
         with context.temp_override(**ov):
             bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
     except Exception as e:
         print(f"[HWPBA] Transform apply warning: {e}")
 
-    # Clear selection to avoid side effects
     for o in parts:
         o.select_set(False)
 
@@ -266,7 +245,6 @@ def _name_sanity(parts):
             left_set.add(n[:-2].lower())
         if n.lower().endswith(".r"):
             right_set.add(n[:-2].lower())
-    # Report unmatched pairs (informational only)
     for base in sorted(left_set ^ right_set):
         print(f"[HWPBA][Name Info] Unmatched side for '{base}': only one of .L/.R present")
 
@@ -288,6 +266,7 @@ def _parts_have_any_armature(parts):
 
 class HWPBA_OT_AutoRigFromParts(bpy.types.Operator):
     """Create a simple socket-pivot rig from separated parts.
+    - Armature origin at world origin (0,0,0)
     - Applies Rotation & Scale (keeps Location)
     - One bone per part, head at part origin, tail +Z
     - Parents bones from object parenting when present
@@ -303,7 +282,6 @@ class HWPBA_OT_AutoRigFromParts(bpy.types.Operator):
         parts, _ = _collect_parts_from_scene(context)
         if not parts:
             return False
-        # Grey out when parts are already influenced by an armature
         return not _parts_have_any_armature(parts)
 
     def execute(self, context):
@@ -314,45 +292,35 @@ class HWPBA_OT_AutoRigFromParts(bpy.types.Operator):
             return {'CANCELLED'}
 
         _name_sanity(parts)
-
-        # Apply rotation/scale to parts (not location)
         _apply_rot_scale(context, parts)
 
-        # Compute defaults
         median_size = _median_part_size(parts)
         bone_len = max(BONE_MIN_LEN, median_size * BONE_LENGTH_FACTOR)
-        pelvis = _pelvis_guess(parts)
 
-        # Create armature in same collection as parts
-        arm_obj, arm_data = _ensure_armature(host_coll, pelvis)
+        arm_obj, arm_data = _ensure_armature(host_coll)
 
-        # Build bones
         _enter_edit(arm_obj)
         bone_map_by_obj = {}
         for o in parts:
             eb = _create_bone(arm_data, arm_obj, o.name, o.matrix_world.translation, bone_len)
             bone_map_by_obj[o] = eb
 
-        # Parent bones based on object parenting (if present)
         _parent_bones_from_object_hierarchy(parts, bone_map_by_obj)
 
-        # Back to object mode
         _exit_edit()
 
         if len(arm_data.bones) == 0:
             self.report({'ERROR'}, "No bones created.")
             return {'CANCELLED'}
 
-        # Skin meshes: 100% weights + Armature modifier
         for o in parts:
             _assign_full_weight(o, o.name)
             _add_armature_mod(o, arm_obj)
 
-        # Make rig active for convenience
         bpy.context.view_layer.objects.active = arm_obj
         arm_obj.select_set(True)
 
-        self.report({'INFO'}, f"Auto-rig complete: {len(arm_data.bones)} bones (Show In Front, Octahedral).")
+        self.report({'INFO'}, f"Auto-rig complete: {len(arm_data.bones)} bones (Origin at world, Show In Front, Octahedral).")
         return {'FINISHED'}
 
 # ---------------- NEW: Clean Pre-Existing Armature / Animations ----------------
@@ -420,17 +388,14 @@ class HWPBA_OT_CleanPreexistingArmature(bpy.types.Operator):
     def execute(self, context):
         parts, _ = _parts_in_scope(context)
 
-        # Identify referenced armatures (from existing Armature modifiers)
         referenced = _armatures_referenced_by(parts)
 
-        # Optionally drop HWPBA_Rig from cleaning list
         to_clean_armatures = []
         for arm in referenced:
             if self.keep_hwpba_rig and arm.name == ARMATURE_NAME:
                 continue
             to_clean_armatures.append(arm)
 
-        # 1) Clean parts: remove ALL Armature modifiers (except optionally the HWPBA one)
         removed_mods = 0
         for o in parts:
             for m in list(o.modifiers):
@@ -446,7 +411,6 @@ class HWPBA_OT_CleanPreexistingArmature(bpy.types.Operator):
             if self.clear_vertex_groups and o.vertex_groups:
                 o.vertex_groups.clear()
 
-        # 2) Unlink animation data from referenced armatures (Action & NLA)
         unlinked = 0
         for arm in to_clean_armatures:
             try:
@@ -456,7 +420,6 @@ class HWPBA_OT_CleanPreexistingArmature(bpy.types.Operator):
             except Exception:
                 pass
 
-        # 3) Purge orphan actions (optionally disable Fake User first)
         purged = _purge_orphan_actions(disable_fake_user=self.disable_fake_user_before_purge)
 
         self.report(
