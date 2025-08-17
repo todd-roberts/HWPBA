@@ -1,0 +1,7 @@
+{
+  "python.analysis.diagnosticSeverityOverrides": {
+    "reportInvalidTypeForm": "none"
+  },
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode"
+}
