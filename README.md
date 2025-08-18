@@ -1,3 +1,5 @@
+# (UNDER CONSTRUCTION, COME BACK IN 24 HOURS)
+
 # Horizon Worlds Parts-Based Animation (HWPBA)
 
 Lightweight tools + workflow for building parts-based animated characters in Horizon Worlds. Export from Blender → upload FBXs + a single Text Asset → drive animations in HW with a small script.
