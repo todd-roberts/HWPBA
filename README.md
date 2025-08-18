@@ -32,10 +32,7 @@ Open an issue on this repo with:
 - Steps to reproduce
 - (Optional) a small .blend or screenshots
 
-## Tip jar
-
-If this helped and you want to toss a thank-you: <PUT_TIP_JAR_LINK_HERE>
 
 ---
 
-License and contributions: PRs welcome. Use at your own risk; see LICENSE for details.
+License and contributions: PRs welcome. Use at your own risk.
