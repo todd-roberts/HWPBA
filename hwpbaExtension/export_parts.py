@@ -167,6 +167,71 @@ def _safe_filename_component(s: str) -> str:
     return out.rstrip(" .")
 
 # ---------------------------------------------------------------------------
+# TEMP bone/object name re-sync for export (minimal + safe)
+# ---------------------------------------------------------------------------
+
+def _resync_bone_names_for_export(context, parts, arm):
+    """
+    Temporarily rename bones (and the corresponding single vertex group on each mesh)
+    so that each bone name == current mesh object name. Returns a list of
+    (obj_name, old_bone_name, new_bone_name) for restoration.
+    """
+    ops = []
+    if not arm or arm.type != 'ARMATURE':
+        return ops
+
+    _ensure_object_mode(context, arm)
+    bones = arm.data.bones
+
+    for obj in parts:
+        # pick the first vertex group that matches an existing bone
+        vg_name = None
+        for vg in obj.vertex_groups:
+            if vg.name in bones:
+                vg_name = vg.name
+                break
+        if not vg_name:
+            continue
+
+        new_name = obj.name
+        if vg_name == new_name:
+            continue
+        if new_name in bones:
+            # would collide; skip this one
+            continue
+
+        try:
+            bones[vg_name].name = new_name
+            vg = obj.vertex_groups.get(vg_name)
+            if vg:
+                vg.name = new_name
+            ops.append((obj.name, vg_name, new_name))
+        except Exception as e:
+            print(f"[HWPBA] Bone/vgroup rename failed for '{obj.name}': {e}")
+
+    return ops
+
+def _undo_resync_bone_names(arm, ops):
+    """Revert temporary bone + vertex group renames performed by _resync_bone_names_for_export."""
+    if not arm or arm.type != 'ARMATURE':
+        return
+    bones = arm.data.bones
+    for obj_name, old_name, new_name in reversed(ops):
+        try:
+            if new_name in bones and old_name not in bones:
+                bones[new_name].name = old_name
+        except Exception:
+            pass
+        obj = bpy.data.objects.get(obj_name)
+        if obj:
+            vg = obj.vertex_groups.get(new_name)
+            if vg:
+                try:
+                    vg.name = old_name
+                except Exception:
+                    pass
+
+# ---------------------------------------------------------------------------
 # Exports
 # ---------------------------------------------------------------------------
 
@@ -244,6 +309,9 @@ def _export_gltf_and_write_json(context, temp_dir, json_out_path, initial_positi
 
     arm = _find_armature_from_parts(objs)
 
+    # --- TEMP re-sync bones to current object names (restore after) ---
+    resync_ops = _resync_bone_names_for_export(context, objs, arm)
+
     prev_sel = list(context.selected_objects)
     prev_active = context.view_layer.objects.active
 
@@ -283,6 +351,9 @@ def _export_gltf_and_write_json(context, temp_dir, json_out_path, initial_positi
                 export_optimize_animation_size=True
             )
     except Exception as e:
+        # Always restore before returning on failure
+        _undo_resync_bone_names(arm, resync_ops)
+
         for o in context.selected_objects:
             o.select_set(False)
         if prev_active:
@@ -297,6 +368,7 @@ def _export_gltf_and_write_json(context, temp_dir, json_out_path, initial_positi
                 pass
         return False, f"GLTF export failed: {e}"
 
+    # Restore selection
     for o in context.selected_objects:
         o.select_set(False)
     if prev_active:
@@ -310,6 +382,8 @@ def _export_gltf_and_write_json(context, temp_dir, json_out_path, initial_positi
         except Exception:
             pass
 
+
+    # Wait for .bin to exist
     bin_path = os.path.splitext(gltf_path)[0] + ".bin"
     t0 = time.time()
     while not os.path.exists(bin_path):
