@@ -28,7 +28,10 @@ Search the Horizon Worlds public assets for `PartsBasedAnimationSystem` to add t
 
 Parts-based characters do not scale in the Y axis by default. You can see this within Blender or your worlds. This is because parts need independent origins (pivot points) and as such scaling in the Y axis will cause them to drift apart as they scale at different rates.
 
-![The spood's abdomen is disconnected and goes through the ground](<ScalingIssue.png>)
+<figure>
+  <img src="ScalingIssue.png" alt="The spood's abdomen is disconnected and goes through the ground">
+  <figcaption>The spood's abdomen is disconnected and goes through the ground</figcaption>
+</figure>
 
 There are two simple solutions:
 
@@ -38,7 +41,10 @@ This is the preferred option, however, it prevents the possibility of re-using t
 
 2. Use the ScalingBase entity that will be included in the public `PartsBasedAnimationSystem` asset. This is a special wrapper you can place your character within that will allow you to scale the character up or down as much as you want while keeping it on the ground plane.
 
-![Fixed!](<ScalingFix.png>)
+<figure>
+  <img src="ScalingFix.png" alt="Fixed!">
+  <figcaption>Fixed!</figcaption>
+</figure>
 
 Note that, if you need to programmatically scale your character at runtime, your scripts will need to modify the scale of the ScalingBase entity and not the character itself.
 
