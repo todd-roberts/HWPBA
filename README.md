@@ -6,7 +6,7 @@ Lightweight tools + workflow for building parts-based animated characters in Hor
 
 Two short series walk through the pipeline end-to-end:
 
-1) Robot — intro to parts-based animation, auto-rigging, animation, importing assets, and playing an animation. [Playlist](https://www.youtube.com/watch?v=H9YB7Iv1hjk&list=PLUvQxgmNxn_K_ldPvYo_6NdrK7b33ZSCp)
+1) Robot — intro to parts-based animation, auto-rigging, animation, importing assets, and playing an animation. [Playlist](https://www.youtube.com/watch?v=ZMkUVivK_g8&list=PLUvQxgmNxn_K_ldPvYo_6NdrK7b33ZSCp)
 
 2) Egyptian Spider — breaking up a more complex, soft-bodied creature into parts, and a more interesting animation. Playlist: COMING SOON (within 72ish hours of you reading this)
 
