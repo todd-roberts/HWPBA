@@ -289,14 +289,20 @@ class Animator {
 
 // ---------------- PB_AnimatedComponent (auto-bind & auto-place) ----------------
 
+type PropsDefinition = {
+  animations: { type: typeof hz.PropTypes.Asset };
+  visibleAfterLoad: { type: typeof hz.PropTypes.Boolean };
+};
+
 export abstract class PB_AnimatedComponent<
-  TConstructor extends hz.ComponentWithConstructor<{
-    animations: { type: typeof hz.PropTypes.Asset };
-  }>
+  TConstructor extends hz.ComponentWithConstructor<PropsDefinition>
 > extends hz.Component<TConstructor> {
   static propsDefinition = {
     animations: { type: hz.PropTypes.Asset },
-  } as const;
+    /** If true, the entity will be visible after the animations are loaded,
+     * regardless of visibility configuration within the editor. */
+    visibleAfterLoad: { type: hz.PropTypes.Boolean, default: true },
+  };
 
   protected static withProps = <T extends Record<string, any>>(extra: T) =>
     ({ ...PB_AnimatedComponent.propsDefinition, ...extra } as const);
@@ -404,7 +410,9 @@ export abstract class PB_AnimatedComponent<
   private update = ({ deltaTime }: { deltaTime: number }) => {
     if (!this._animator.isConfigured()) return;
     if (!this._loaded) {
-      this.entity.visible.set(true);
+      if (this.props.visibleAfterLoad) {
+        this.entity.visible.set(true);
+      }
       this._loaded = true;
     }
 
