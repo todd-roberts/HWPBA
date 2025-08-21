@@ -31,11 +31,11 @@ Parts-based characters do not scale in the Y axis by default. You can see this w
   <figcaption>The spood's abdomen is disconnected and goes through the ground</figcaption>
 </figure>
 
+
+
 There are two simple solutions:
 
-1. Design your character purposefully in Blender at the scale you want it to be for your world, such that you won't ever need to scale it. If you are starting with a character that is not separated, this requires scaling *before* breaking it up into parts and setting their respective origins.
-
-This is the preferred option, however, it prevents the possibility of re-using the parts/animations for different-sized or themed characters, which can be incredibly powerful and time-saving.
+1. Design your character purposefully in Blender at the scale you want it to be for your world, such that you won't ever need to scale it. If you are starting with a character that is not separated, this requires scaling *before* breaking it up into parts and setting their respective origins. This is the preferred option, however, it prevents the possibility of re-using the parts/animations for different-sized or themed characters, which can be incredibly powerful and time-saving.
 
 2. Use the ScalingBase entity that will be included in the public `PartsBasedAnimationSystem` asset. This is a special wrapper you can place your character within that will allow you to scale the character up or down as much as you want while keeping it on the ground plane.
 
