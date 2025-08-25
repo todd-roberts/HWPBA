@@ -240,20 +240,20 @@ def save_or_copy_image_to(img, dest_dir: str, existing_by_name: dict, preferred_
 
 # ---------------------------------------------------------------------------
 
-def write_instructions(root_dir: str, animations_filename: str):
-    """
-    Minimal instructions, matching new structure and Text Asset flow.
-    animations_filename: e.g. 'Goblin_Animations.json'
-    """
-    path = os.path.join(root_dir, "instructions.txt")
-    with open(path, "w", encoding="utf-8") as f:
-        f.writelines([
-            "HWPBA Output\n",
-            "\n",
-            "Upload to Horizon Worlds:\n",
-            "1) Open Horizon Worlds Creator Portal.\n",
-            "2) Upload everything under 'HWPBA_Output/assetsToUpload'.\n",
-            "   - '3dModels' contains all FBX parts and textures.\n",
-            f"   - '{animations_filename}' is a Text Asset; import it into your world.\n",
-        ])
-    return path
+# def write_instructions(root_dir: str, animations_filename: str):
+#     """
+#     Minimal instructions, matching new structure and Text Asset flow.
+#     animations_filename: e.g. 'Goblin_Animations.json'
+#     """
+#     path = os.path.join(root_dir, "instructions.txt")
+#     with open(path, "w", encoding="utf-8") as f:
+#         f.writelines([
+#             "HWPBA Output\n",
+#             "\n",
+#             "Upload to Horizon Worlds:\n",
+#             "1) Open Horizon Worlds Creator Portal.\n",
+#             "2) Upload everything under 'HWPBA_Output/assetsToUpload'.\n",
+#             "   - '3dModels' contains all FBX parts and textures.\n",
+#             f"   - '{animations_filename}' is a Text Asset; import it into your world.\n",
+#         ])
+#     return path

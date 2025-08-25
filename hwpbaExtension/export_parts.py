@@ -428,7 +428,7 @@ class HWPBA_OT_CreateFiles(bpy.types.Operator):
                 self.report({'ERROR'}, f"Animation JSON failed: {msg2}")
                 return {'CANCELLED'}
 
-            write_instructions(root_dir, json_filename)
+            #write_instructions(root_dir, json_filename)
 
             src = f" from '{source}'" if source else ""
             self.report({'INFO'}, f"Exported {fbx_count} FBX part(s){src}; {tex_count} texture(s). {msg2}.")
