@@ -62,18 +62,15 @@ def _find_armature_from_parts(parts):
     return arm
 
 def _snapshot_scene(context, parts, arm):
-    """Capture mode, active/selection, object matrices, and pose bone matrices."""
     state = {}
     state["orig_mode"] = bpy.context.mode
     state["active_name"] = context.view_layer.objects.active.name if context.view_layer.objects.active else None
     state["sel_names"] = [o.name for o in context.selected_objects]
 
-    # matrices
     objset = set(parts)
     if arm: objset.add(arm)
     state["obj_mats"] = {o.name: o.matrix_world.copy() for o in objset}
 
-    # pose bones
     pose_basis = {}
     if arm and arm.type == "ARMATURE" and arm.pose:
         for pb in arm.pose.bones:
@@ -83,11 +80,8 @@ def _snapshot_scene(context, parts, arm):
     return state
 
 def _restore_scene(context, state, parts, arm):
-    """Restore matrices, pose, selection/active, and original mode."""
-    # Make sure we're in OBJECT for safe assignments
     _ensure_object_mode(context)
 
-    # restore object matrices
     for o in parts:
         mw = state["obj_mats"].get(o.name)
         if mw is not None:
@@ -97,14 +91,12 @@ def _restore_scene(context, state, parts, arm):
         if mw is not None:
             arm.matrix_world = mw
 
-    # restore pose bone basis
     if arm and arm.type == "ARMATURE" and arm.pose and state["pose_basis"]:
         for pb in arm.pose.bones:
             mb = state["pose_basis"].get(pb.name)
             if mb is not None:
                 pb.matrix_basis = mb
 
-    # restore selection
     for o in list(context.selected_objects):
         o.select_set(False)
     for name in state["sel_names"]:
@@ -112,16 +104,13 @@ def _restore_scene(context, state, parts, arm):
         if ob:
             ob.select_set(True)
 
-    # restore active
     if state["active_name"]:
         ao = context.view_layer.objects.get(state["active_name"])
         if ao:
             context.view_layer.objects.active = ao
 
-    # restore mode
     target_mode = state["orig_mode"]
     if target_mode and target_mode != bpy.context.mode:
-        # If target is a pose/edit mode, ensure appropriate active
         if target_mode == 'POSE' or target_mode == 'EDIT_ARMATURE':
             if arm:
                 context.view_layer.objects.active = arm
@@ -135,21 +124,16 @@ def _restore_scene(context, state, parts, arm):
             except Exception as e:
                 print(f"[HWPBA] restore mode failed: {e}")
 
-    # ensure depsgraph updates
     try:
         bpy.context.view_layer.update()
     except Exception:
         pass
 
 # ---------------------------------------------------------------------------
-# Initial placement (RAW world-space, exporter will convert to HW-native later)
+# Initial placement (RAW world-space)
 # ---------------------------------------------------------------------------
 
 def _compute_initial_positions(objs):
-    """
-    Return RAW Blender world-space positions for each part.
-    These are passed through as-is (no axis correction here).
-    """
     initial = {}
     for o in objs:
         t = o.matrix_world.translation
@@ -157,7 +141,7 @@ def _compute_initial_positions(objs):
     return initial
 
 # ---------------------------------------------------------------------------
-# Filename safety (preserve '.' in stems!)
+# Filename safety
 # ---------------------------------------------------------------------------
 
 _ILLEGAL = set('<>:"/\\|?*')
@@ -171,11 +155,6 @@ def _safe_filename_component(s: str) -> str:
 # ---------------------------------------------------------------------------
 
 def _resync_bone_names_for_export(context, parts, arm):
-    """
-    Temporarily rename bones (and the corresponding single vertex group on each mesh)
-    so that each bone name == current mesh object name. Returns a list of
-    (obj_name, old_bone_name, new_bone_name) for restoration.
-    """
     ops = []
     if not arm or arm.type != 'ARMATURE':
         return ops
@@ -184,7 +163,6 @@ def _resync_bone_names_for_export(context, parts, arm):
     bones = arm.data.bones
 
     for obj in parts:
-        # pick the first vertex group that matches an existing bone
         vg_name = None
         for vg in obj.vertex_groups:
             if vg.name in bones:
@@ -197,7 +175,6 @@ def _resync_bone_names_for_export(context, parts, arm):
         if vg_name == new_name:
             continue
         if new_name in bones:
-            # would collide; skip this one
             continue
 
         try:
@@ -212,7 +189,6 @@ def _resync_bone_names_for_export(context, parts, arm):
     return ops
 
 def _undo_resync_bone_names(arm, ops):
-    """Revert temporary bone + vertex group renames performed by _resync_bone_names_for_export."""
     if not arm or arm.type != 'ARMATURE':
         return
     bones = arm.data.bones
@@ -280,6 +256,7 @@ def _export_parts_fbx(context, models_dir, prefix: str):
         except Exception as e:
             print(f"[HWPBA] FBX export failed for '{obj.name}': {e}")
 
+    # Restore selection
     for o in context.selected_objects:
         o.select_set(False)
     if prev_active:
@@ -293,11 +270,12 @@ def _export_parts_fbx(context, models_dir, prefix: str):
         except Exception:
             pass
 
-    images = gather_images_from_objects(objs)
+    # ---- COPY/SAVE TEXTURES with Horizon-friendly names ----
+    img_specs = gather_images_from_objects(objs)  # [(image, 'Base_BR'), ...]
     existing_by_name = {}
     copied = 0
-    for img in images:
-        out = save_or_copy_image_to(img, models_dir, existing_by_name)
+    for (img, base) in img_specs:
+        out = save_or_copy_image_to(img, models_dir, existing_by_name, preferred_base=base)
         if out:
             copied += 1
 
@@ -306,7 +284,6 @@ def _export_parts_fbx(context, models_dir, prefix: str):
 def _export_gltf_and_write_json(context, temp_dir, json_out_path, initial_positions, name_prefix: str):
     """Export GLTF (separate) of the armature + parts, then write [Name]_Animations.json with wrapper."""
     objs, _ = find_parts(context)
-
     arm = _find_armature_from_parts(objs)
 
     # --- TEMP re-sync bones to current object names (restore after) ---
@@ -351,9 +328,7 @@ def _export_gltf_and_write_json(context, temp_dir, json_out_path, initial_positi
                 export_optimize_animation_size=True
             )
     except Exception as e:
-        # Always restore before returning on failure
         _undo_resync_bone_names(arm, resync_ops)
-
         for o in context.selected_objects:
             o.select_set(False)
         if prev_active:
@@ -382,7 +357,6 @@ def _export_gltf_and_write_json(context, temp_dir, json_out_path, initial_positi
         except Exception:
             pass
 
-
     # Wait for .bin to exist
     bin_path = os.path.splitext(gltf_path)[0] + ".bin"
     t0 = time.time()
@@ -397,6 +371,7 @@ def _export_gltf_and_write_json(context, temp_dir, json_out_path, initial_positi
         initial_positions,   # raw world-space; converter will produce HW-native
         name_prefix=name_prefix,
     )
+
     return ok, msg
 
 # ---------------------------------------------------------------------------
@@ -416,7 +391,6 @@ class HWPBA_OT_CreateFiles(bpy.types.Operator):
         return ok
 
     def execute(self, context):
-        # Find parts/armature up front so we can snapshot the scene
         parts, _ = find_parts(context)
         arm = _find_armature_from_parts(parts)
         state = _snapshot_scene(context, parts, arm)
@@ -440,11 +414,9 @@ class HWPBA_OT_CreateFiles(bpy.types.Operator):
             char_name = (s.character_name if s and s.character_name else
                          bpy.path.display_name_from_filepath(bpy.data.filepath) or "Character")
 
-            # Use ONE normalized prefix everywhere (underscores for spaces)
             prefix = clean(char_name) + "_"
 
             fbx_count, tex_count, objs = _export_parts_fbx(context, models_dir, prefix)
-
             initial_positions = _compute_initial_positions(objs)
 
             json_filename = f"{clean(char_name)}_Animations.json"
@@ -462,7 +434,6 @@ class HWPBA_OT_CreateFiles(bpy.types.Operator):
             self.report({'INFO'}, f"Exported {fbx_count} FBX part(s){src}; {tex_count} texture(s). {msg2}.")
             return {'FINISHED'}
         finally:
-            # Always restore the artist’s exact scene state (pose/mode/selection/transforms)
             try:
                 _restore_scene(context, state, parts, arm)
             except Exception as e:

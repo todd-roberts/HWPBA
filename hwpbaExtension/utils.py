@@ -146,19 +146,6 @@ def validate(context):
         return False, "No parts found. Select an armature, or set Source Collection.", 0, source, base_abs
     return True, "", len(objs), source, base_abs
 
-def gather_images_from_objects(objects):
-    images, seen = [], set()
-    for obj in objects:
-        for slot in getattr(obj, "material_slots", []):
-            mat = slot.material
-            if not mat or not mat.use_nodes or not mat.node_tree:
-                continue
-            for node in mat.node_tree.nodes:
-                if node.type == 'TEX_IMAGE' and node.image and node.image.name not in seen:
-                    seen.add(node.image.name)
-                    images.append(node.image)
-    return images
-
 def hash_file(path: str):
     h = hashlib.sha1()
     with open(path, "rb") as f:
@@ -166,33 +153,92 @@ def hash_file(path: str):
             h.update(chunk)
     return h.hexdigest()
 
-def save_or_copy_image_to(img, dest_dir: str, existing_by_name: dict):
+# ---------------------------------------------------------------------------
+# Image gathering + saving (Horizon-friendly naming)
+# ---------------------------------------------------------------------------
+
+def gather_images_from_objects(objects):
     """
-    Write an image next to FBXs (in 3dModels), deduping by filename (basename+ext).
-    Prefer copying from original filepath; otherwise save packed buffer.
+    Return a list of (image, preferred_base_name) pairs.
+    For each *material* seen, choose one representative image:
+      - Prefer the TEX_IMAGE node feeding Principled BSDF 'Base Color'
+      - Else first TEX_IMAGE in the material node tree
+    Filename base is derived from the material name:
+      <MaterialName up to first '_'> + '_BR'
+      e.g., 'Glass_Transparent' -> 'Glass_BR'
+    """
+    result = []
+    seen_materials = set()
+
+    for obj in objects:
+        for slot in getattr(obj, "material_slots", []):
+            mat = slot.material
+            if not mat or mat.name in seen_materials:
+                continue
+            seen_materials.add(mat.name)
+
+            img = None
+            if mat.use_nodes and mat.node_tree:
+                nt = mat.node_tree
+                # Prefer image plugged into Principled Base Color
+                principled_nodes = [n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED']
+                if principled_nodes:
+                    pset = set(principled_nodes)
+                    for link in nt.links:
+                        if link.to_node in pset and getattr(link.to_socket, "name", "") == "Base Color":
+                            if getattr(link.from_node, "type", "") == 'TEX_IMAGE' and getattr(link.from_node, "image", None):
+                                img = link.from_node.image
+                                break
+                # Fallback: first image texture node
+                if img is None:
+                    for node in nt.nodes:
+                        if node.type == 'TEX_IMAGE' and node.image:
+                            img = node.image
+                            break
+
+            if img:
+                base_token = mat.name.split("_", 1)[0]
+                base = clean(base_token) + "_BR"
+                result.append((img, base))
+
+    return result
+
+def save_or_copy_image_to(img, dest_dir: str, existing_by_name: dict, preferred_base: str = None):
+    """
+    Write a PNG next to FBXs (in 3dModels), deduping by final filename.
+    - File is ALWAYS saved as .png (converts if needed).
+    - Name is based on preferred_base if provided (e.g., 'MyMaterial_BR'),
+      otherwise falls back to a cleaned image name.
     Returns final path or None.
     """
-    base = clean(os.path.splitext(img.name)[0]) or "Image"
-    src_path = bpy.path.abspath(img.filepath) if img.filepath else ""
-    ext = os.path.splitext(src_path or "")[1].lower() or ".png"
-    final_name = base + ext
+    # Decide final basename
+    if preferred_base:
+        base = clean(preferred_base)
+    else:
+        base = clean(os.path.splitext(img.name)[0]) or "Image"
+
+    final_name = base + ".png"
     target = os.path.join(dest_dir, final_name)
 
+    # Dedup
     if final_name in existing_by_name:
         return existing_by_name[final_name]
 
-    if src_path and os.path.exists(src_path):
-        import shutil as _sh
-        _sh.copy2(src_path, target)
-        existing_by_name[final_name] = target
-        return target
-
+    src_path = bpy.path.abspath(img.filepath) if img.filepath else ""
     try:
-        img.save(filepath=target)
-        existing_by_name[final_name] = target
-        return target
-    except Exception:
+        if src_path and os.path.exists(src_path) and os.path.splitext(src_path)[1].lower() == ".png":
+            shutil.copy2(src_path, target)
+        else:
+            # Force PNG save (works for packed or non-PNG external sources)
+            img.save(filepath=target)
+    except Exception as e:
+        print(f"[HWPBA] Texture write failed for '{img.name}': {e}")
         return None
+
+    existing_by_name[final_name] = target
+    return target
+
+# ---------------------------------------------------------------------------
 
 def write_instructions(root_dir: str, animations_filename: str):
     """
