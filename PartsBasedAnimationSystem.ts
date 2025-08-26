@@ -292,6 +292,7 @@ class Animator {
 type PropsDefinition = {
   animations: { type: typeof hz.PropTypes.Asset };
   visibleAfterLoad: { type: typeof hz.PropTypes.Boolean };
+  characterNameOverride: { type: typeof hz.PropTypes.String };
 };
 
 export abstract class PB_AnimatedComponent<
@@ -302,6 +303,11 @@ export abstract class PB_AnimatedComponent<
     /** If true, the entity will be visible after the animations are loaded,
      * regardless of visibility configuration within the editor. */
     visibleAfterLoad: { type: hz.PropTypes.Boolean, default: true },
+    /**
+     * This prop should only be provided if you are using one animation file
+     * against multiple, different-named characters.
+     */
+    characterNameOverride: { type: hz.PropTypes.String, default: "" },
   };
 
   protected static withProps = <T extends Record<string, any>>(extra: T) =>
@@ -392,7 +398,9 @@ export abstract class PB_AnimatedComponent<
     const validNames = new Set<string>(
       Object.keys(json.initialPositions || {})
     );
-    const prefix = json.namePrefix ? json.namePrefix : "";
+    const prefix =
+      this.props.characterNameOverride ||
+      (json.namePrefix ? json.namePrefix : "");
 
     const parts: AnimationPartsNode[] = [];
     const nodes = this.collectNodes(this.entity);
