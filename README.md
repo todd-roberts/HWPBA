@@ -46,9 +46,16 @@ There are two simple solutions:
 
 Note that, if you need to programmatically scale your character at runtime, your scripts will need to modify the scale of the ScalingBase entity and not the character itself.
 
+## PreStart
+Note that the base class, `PB_AnimatedComponent`, leverages `preStart()` to initialize. If you need to hook into preStart in your child class, do one of the following:
+
+1. Call `super.preStart()` at the start of your preStart override.
+2. Use `onPreStart()` instead, which is called within the base class preStart.
+
 ## Limitations
 - The system is designed for parts-based animation, not vertex-based animation. 
 - Currently scaling within the animations themselves is not suppported. That will be added in v2.
+- File-backed Scripts are required to bring in scripted public assets. If you cannot or don't want to enable File-backed Scripts in your world, you can download PartsBasedAnimationSystem.ts from this repo directly and put it in your world's scripts directory. 
 
 ## Having trouble?
 
