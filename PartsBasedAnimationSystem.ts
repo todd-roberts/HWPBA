@@ -398,11 +398,11 @@ export abstract class PB_AnimatedComponent<
     const validNames = new Set<string>(
       Object.keys(json.initialPositions || {})
     );
-    const prefix = this.props.characterNameOverride
-      ? `${this.props.characterNameOverride}_`
-      : json.namePrefix
-      ? json.namePrefix
-      : "";
+
+    const trimmedOverride = this.props.characterNameOverride?.trim() ?? "";
+    const prefix = trimmedOverride
+      ? `${trimmedOverride}_`
+      : json.namePrefix || "";
 
     const parts: AnimationPartsNode[] = [];
     const nodes = this.collectNodes(this.entity);
