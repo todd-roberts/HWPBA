@@ -57,8 +57,8 @@ Note that the base class, `PB_AnimatedComponent`, leverages `preStart()` to init
 
 ## Limitations
 - The system is designed for parts-based animation, not vertex-based animation. 
-- Currently scaling within the animations themselves is not suppported. That will be added in v2.
-- File-backed Scripts are required to bring in scripted public assets. If you cannot or don't want to enable File-backed Scripts in your world, you can download PartsBasedAnimationSystem.ts from this repo directly and put it in your world's scripts directory. 
+- Currently, scaling within the animations themselves is not suppported. That will be added in v2.
+- File-backed Scripts are required to bring in scripted public assets. If you cannot or don't want to enable File-backed Scripts in your world, you can download [the typescript file](https://raw.githubusercontent.com/todd-roberts/HWPBA/main/PartsBasedAnimationSystem.ts) and put it in your world's scripts directory. 
 
 ## Having trouble?
 
