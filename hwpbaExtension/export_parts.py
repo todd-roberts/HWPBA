@@ -3,7 +3,7 @@ import bpy, os, time
 from mathutils import Matrix
 from .utils import (
     settings, clean, validate, ensure_dirs, find_parts,
-    gather_images_from_objects, save_or_copy_image_to, write_instructions,
+    gather_images_from_objects, save_or_copy_image_to,
     clean_known_outputs,
 )
 from .gltf_to_json import convert_gltf_to_json
