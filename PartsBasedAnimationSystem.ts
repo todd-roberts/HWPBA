@@ -291,7 +291,8 @@ class Animator {
 
 type PropsDefinition = {
   animations: { type: typeof hz.PropTypes.Asset };
-  visibleAfterLoad: { type: typeof hz.PropTypes.Boolean };
+  invisibleUntilAnimationsLoaded: { type: typeof hz.PropTypes.Boolean };
+  allowMissingAnimations: { type: typeof hz.PropTypes.Boolean };
   characterNameOverride: { type: typeof hz.PropTypes.String };
 };
 
@@ -300,9 +301,25 @@ export abstract class PB_AnimatedComponent<
 > extends hz.Component<TConstructor> {
   static propsDefinition = {
     animations: { type: hz.PropTypes.Asset },
-    /** If true, the entity will be visible after the animations are loaded,
-     * regardless of visibility configuration within the editor. */
-    visibleAfterLoad: { type: hz.PropTypes.Boolean, default: true },
+    /**
+     * If true, the entity will be invisible until the animations
+     * asset is fully loaded and bound. Without this, there is the
+     * potential for the model to be viewed in disarray momentarily.
+     */
+    invisibleUntilAnimationsLoaded: {
+      type: hz.PropTypes.Boolean,
+      default: true,
+    },
+    /**
+     * If true, the component will not throw an error if no animations
+     * asset is provided and will immediately begin to process updates.
+     *
+     * This is useful if you want to use PB_AnimatedComponent
+     * as a base class for its update loop.
+     */
+    allowMissingAnimations: {
+      type: hz.PropTypes.Boolean,
+    },
     /**
      * This prop should only be provided if you are using one animation file
      * against multiple, different-named characters.
@@ -320,7 +337,18 @@ export abstract class PB_AnimatedComponent<
   protected onUpdate = (_dt: number) => {};
 
   preStart() {
-    this.entity.visible.set(false);
+    if (!this.props.animations) {
+      if (!this.props.allowMissingAnimations) {
+        throw new Error(
+          "Missing `animations` Text Asset on PB_AnimatedComponent."
+        );
+      }
+    }
+
+    if (this.props.invisibleUntilAnimationsLoaded) {
+      this.entity.visible.set(false);
+    }
+
     this.connectLocalBroadcastEvent(hz.World.onUpdate, this.update);
     this.loadAndBind();
     this.onPreStart();
@@ -398,7 +426,6 @@ export abstract class PB_AnimatedComponent<
     const validNames = new Set<string>(
       Object.keys(json.initialPositions || {})
     );
-
     const trimmedOverride = this.props.characterNameOverride?.trim() ?? "";
     const prefix = trimmedOverride
       ? `${trimmedOverride}_`
@@ -418,9 +445,11 @@ export abstract class PB_AnimatedComponent<
   };
 
   private update = ({ deltaTime }: { deltaTime: number }) => {
-    if (!this._animator.isConfigured()) return;
+    if (!this.props.allowMissingAnimations && !this._animator.isConfigured())
+      return;
+
     if (!this._loaded) {
-      if (this.props.visibleAfterLoad) {
+      if (this.props.invisibleUntilAnimationsLoaded) {
         this.entity.visible.set(true);
       }
       this._loaded = true;
