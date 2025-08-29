@@ -23,7 +23,7 @@ Follow along using the starter files below.
 Search the Horizon Worlds public assets for `PartsBasedAnimationSystem` to add the core script to your world. The tutorials above demonstrate how to script against the system.
 
 ### Using the public asset
-After adding the `PartsBasedAnimationSystem` asset to your world, you'll have the required scripts to implement the system. At this point, feel free to delete the entire entity that was created when you dragged the asset into the world. You may also delete the BeepBoop and EgyptianSpider scripts. Depending on your use case, you may wish to hold on to the `ScalingBase` entity which is a parent of the `EgyptianSpider` entity. See the "Scaling issue / fix" section below for more information.
+After adding the `PartsBasedAnimationSystem` asset to your world, you'll have the required scripts to implement the system. At this point, feel free to delete the entire entity that was created when you dragged the asset into the world. You may also delete the BeepyBoop and EgyptianSpider scripts. Depending on your use case, you may wish to hold on to the `ScalingBase` entity which is a parent of the `EgyptianSpider` entity. See the "Scaling issue / fix" section below for more information.
 
 ## Scaling issue / fix
 
