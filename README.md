@@ -63,7 +63,8 @@ If you want to add primitive colliders to your parts, I highly suggest the follo
 3. Make the new object a child of your original part, zero out its transform so that the origins match, and then drag it outside of the part so that they are siblings. 
 4. Drag your part inside the new object so that it's a child of the new object.
 5. Turn off your part's collidability, but keep it visible.
-6. Add whatever primitive colliders you want as children of the new object (they will be siblings of the part)
+6. Rename your part to something like "Arm.L_Mesh" so that it's no longer animated.
+7. Add whatever primitive colliders you want as children of the new object (they will be siblings of the part)
 
 ## Limitations
 - The system is designed for parts-based animation, not vertex-based animation. 
