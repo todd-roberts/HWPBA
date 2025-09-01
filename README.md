@@ -59,7 +59,7 @@ Note that the base class, `PB_AnimatedComponent`, leverages `preStart()` to init
 
 If you want to add primitive colliders to your parts, I highly suggest the following workflow:
 1. Create a new empty object from the `Build` menu in the desktop editor. 
-2. Re-name the new object to have the exact name of your part, e.g. if your part is named "Giant_Arm.L" your new object should be named exactly "Giant_Arm.L". This is because the animator looks for objects with these specific names.
+2. Re-name the new object to have the exact name of your part, e.g. if your part is named "Giant_Arm.L" your new object should be named exactly "Giant_Arm.L". This is because the animator looks for objects by name.
 3. Make the new object a child of your original part, zero out its transform so that the origins match, and then drag it outside of the part so that they are siblings. 
 4. Drag your part inside the new object so that it's a child of the new object.
 5. Turn off your part's collidability, but keep it visible.
