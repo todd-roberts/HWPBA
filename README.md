@@ -55,6 +55,16 @@ Note that the base class, `PB_AnimatedComponent`, leverages `preStart()` to init
 1. Call `super.preStart()` at the start of your preStart override.
 2. Use `onPreStart()` instead, which is called within the base class preStart.
 
+## Simplified/primitive colliders
+
+If you want to add primitive colliders to your parts, I highly suggest the following workflow:
+1. Create a new empty object from the `Build` menu in the desktop editor. 
+2. Re-name the new object to have the exact name of your part, e.g. if your part is named "Giant_Arm.L" your new object should be named exactly "Giant_Arm.L". This is because the animator looks for objects with these specific names.
+3. Make the new object a child of your original part, zero out its transform so that the origins match, and then drag it outside of the part so that they are siblings. 
+4. Drag your part inside the new object so that it's a child of the new object.
+5. Turn off your part's collidability, but keep it visible.
+6. Add whatever primitive colliders you want as children of the new object (they will be siblings of the part)
+
 ## Limitations
 - The system is designed for parts-based animation, not vertex-based animation. 
 - Currently, scaling within the animations themselves is not suppported. That will be added in v2.
